@@ -1,6 +1,6 @@
 /**
  * Manysales editor
- * @author FireApps
+ * @author Manysales Team
  * @version 1.0.0
  * @param {*} config 
  */
@@ -18,7 +18,7 @@ function Mseditor(config) {
 
 Mseditor.prototype.initContentEditTable = function(callback) {
     const _this = this
-    console.log('this.targetElement', this.targetElement)
+    // console.log('this.targetElement', this.targetElement)
     if(! this.targetElement) return
     var childHtml = this.targetElement.innerHTML
 
@@ -78,43 +78,40 @@ Mseditor.prototype.initBlockInsert = function(target = null, callback) {
     callback && callback()
 }
 
-Mseditor.prototype.initblockStyle = function () {
-
+Mseditor.prototype.initBlockStyle = function (targetButton) {
+    console.log(targetButton)
+    var div = document.createElement('div')
+    var divAlignLeft = document.createElement('div')
+    var divAlignCenter = document.createElement('div')
+    var divAlignRight = document.createElement('div')
 }
-
-Mseditor.prototype.getCurrentCursorPosition = function(parentId) {
-    var selection = window.getSelection(),
-        charCount = -1,
-        node;
-
-    if (selection.focusNode) {
-        if (isChildOf(selection.focusNode, parentId)) {
-            node = selection.focusNode; 
-            charCount = selection.focusOffset;
-
-            while (node) {
-                if (node.id === parentId) {
-                    break;
-                }
-
-                if (node.previousSibling) {
-                    node = node.previousSibling;
-                    charCount += node.textContent.length;
-                } else {
-                     node = node.parentNode;
-                     if (node === null) {
-                         break
-                     }
-                }
-           }
-        }
-   }
-
-    return charCount;
-};
 
 Mseditor.prototype.eventListener = function() {
     const _this = this
+    this.targetElement.addEventListener('onkeyup', function() {
+        if (window.getSelection && window.getSelection().getRangeAt) {
+            var range = window.getSelection().getRangeAt(0);
+            var selectedObj = window.getSelection();
+            var rangeCount = 0;
+            var childNodes = selectedObj.anchorNode.parentNode.childNodes;
+            for (var i = 0; i < childNodes.length; i++) {
+                if (childNodes[i] == selectedObj.anchorNode) {
+                    break;
+                }
+                if (childNodes[i].outerHTML) {
+                    rangeCount += childNodes[i].outerHTML.length;
+                    console.log('rangeCount-2', rangeCount)
+                }
+                else if (childNodes[i].nodeType == 3) {
+                    console.log('rangeCount-2',rangeCount)
+
+                    rangeCount += childNodes[i].textContent.length;
+                }
+            }
+            return range.startOffset + rangeCount;
+        }
+        return -1;
+    })
     this.targetContainer.addEventListener('mouseover', function() {
         _this.targetContainer.classList.add('mseditor-focus')
         const offsetTop = _this.targetContent.offsetTop + 40
@@ -138,9 +135,9 @@ Mseditor.prototype.eventListener = function() {
     })
 
     const childNodes = this.targetContent.childNodes
-    console.log(childNodes)
+    // console.log(childNodes)
     childNodes && childNodes.forEach(function(element) {
-        console.log(element.nodeName)
+        // console.log(element.nodeName)
     })
 
 
@@ -151,22 +148,96 @@ Mseditor.prototype.eventListener = function() {
 
         var divButton = document.createElement('div')
         divButton.setAttribute('class', 'mseditor-button')
-        divButton.setAttribute('contenteditable', false)
+        // divButton.setAttribute('contenteditable', false)
+        var buttonStyle = JSON.stringify({
+            'backgroud': '#F00',
+            'color': '#FFF',
+            'padding': '10px 20px',
+            'margin-top': '10px',
+            'margin-bottom': '20px'
+        })
+        divButton.setAttribute('data-style', buttonStyle)
+        divButton.appendChild(divButtonContent)
 
-        // divButton.appendChild(divButtonContent)
+        divButton.addEventListener('click', function() {
+            _this.initBlockStyle(this)
+        })
+
+        var div = document.createElement('div')
+        div.setAttribute('class', 'mseditor-button-wrap')
+        // div.setAttribute('contenteditable', false)
+        div.appendChild(divButton)
 
         _this.targetContent.focus()
-        console.log(divButton)
-        _this.insertHtmlAtCaret(divButton, false)
+        console.log(_this.targetContent)
+        _this.insertHtmlAtCaret(div, false)
     })
+
+
 }
 
 
 Mseditor.prototype.insertHtmlAtCaret = function(html, selectPastedContent) {
+    function createRange(node, chars, range) {
+        if (!range) {
+            range = document.createRange()
+            range.selectNode(node);
+            range.setStart(node, 0);
+        }
+    
+        if (chars.count === 0) {
+            range.setEnd(node, chars.count);
+        } else if (node && chars.count >0) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                if (node.textContent.length < chars.count) {
+                    chars.count -= node.textContent.length;
+                } else {
+                     range.setEnd(node, chars.count);
+                     chars.count = 0;
+                }
+            } else {
+                for (var lp = 0; lp < node.childNodes.length; lp++) {
+                    range = createRange(node.childNodes[lp], chars, range);
+    
+                    if (chars.count === 0) {
+                       break;
+                    }
+                }
+            }
+       } 
+    
+       return range;
+    };
+    
+    function setCurrentCursorPosition(pos) {
+        if (chars >= 0) {
+            var selection = window.getSelection();
+    
+            range = createRange(document.getElementById("test").parentNode, { count: pos });
+    
+            if (range) {
+                range.collapse(false);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        }
+    };
+    
+
+
+
+
+
+
+
     var sel, range;
+    console.log(window.getSelection())
     if (window.getSelection) {
         // IE9 and non-IE
         sel = window.getSelection();
+        console.log(sel)
+        console.log(sel.getRangeAt)
+        console.log(sel.rangeCount)
         if (sel.getRangeAt && sel.rangeCount) {
             range = sel.getRangeAt(0);
             range.deleteContents();
@@ -207,4 +278,50 @@ Mseditor.prototype.insertHtmlAtCaret = function(html, selectPastedContent) {
             range.select();
         }
     }
+}
+
+
+function getCaretCharacterOffsetWithin(element) {
+    var caretOffset = 0;
+    var doc = element.ownerDocument || element.document;
+    var win = doc.defaultView || doc.parentWindow;
+    var sel;
+    if (typeof win.getSelection != "undefined") {
+      sel = win.getSelection();
+      if (sel.rangeCount > 0) {
+        var range = win.getSelection().getRangeAt(0);
+        var preCaretRange = range.cloneRange();
+        preCaretRange.selectNodeContents(element);
+        preCaretRange.setEnd(range.endContainer, range.endOffset);
+        caretOffset = preCaretRange.toString().length;
+      }
+    } else if ((sel = doc.selection) && sel.type != "Control") {
+      var textRange = sel.createRange();
+      var preCaretTextRange = doc.body.createTextRange();
+      preCaretTextRange.moveToElementText(element);
+      preCaretTextRange.setEndPoint("EndToEnd", textRange);
+      caretOffset = preCaretTextRange.text.length;
+    }
+    return caretOffset;
+}
+
+Mseditor.prototype.getCaretPosition = function() {
+    if (window.getSelection && window.getSelection().getRangeAt) {
+        var range = window.getSelection().getRangeAt(0);
+        var selectedObj = window.getSelection();
+        var rangeCount = 0;
+        var childNodes = selectedObj.anchorNode.parentNode.childNodes;
+        for (var i = 0; i < childNodes.length; i++) {
+            if (childNodes[i] == selectedObj.anchorNode) {
+                break;
+            }
+            if (childNodes[i].outerHTML)
+                rangeCount += childNodes[i].outerHTML.length;
+            else if (childNodes[i].nodeType == 3) {
+                rangeCount += childNodes[i].textContent.length;
+            }
+        }
+        return range.startOffset + rangeCount;
+    }
+    return -1;
 }
