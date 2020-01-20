@@ -9,7 +9,6 @@ function Mseditor(config) {
     this.element = config.element || null
     this.targetElement = document.querySelector(config.element) ||  null
     this.targetContent = null
-    this.currentCursorPosition = 0
     console.log('Mseditor')
     this.initContentEditTable()
     this.initBlockInsert()
@@ -170,101 +169,65 @@ Mseditor.prototype.eventListener = function() {
 
         _this.targetContent.focus()
         console.log(_this.targetContent)
+
+        // _this.setCaretCharacterOffsetWithin()
+        _this.setCaretPosition()
         _this.insertHtmlAtCaret(div, false)
     })
 
-
+    function getCaretPos() {
+        _this.getCaretPosition()
+    }
+    this.targetContent.onkeyup = getCaretPos
+    this.targetContent.onmouseup = getCaretPos
 }
 
 
-Mseditor.prototype.insertHtmlAtCaret = function(html, selectPastedContent) {
-    function createRange(node, chars, range) {
-        if (!range) {
-            range = document.createRange()
-            range.selectNode(node);
-            range.setStart(node, 0);
-        }
-    
-        if (chars.count === 0) {
-            range.setEnd(node, chars.count);
-        } else if (node && chars.count >0) {
-            if (node.nodeType === Node.TEXT_NODE) {
-                if (node.textContent.length < chars.count) {
-                    chars.count -= node.textContent.length;
-                } else {
-                     range.setEnd(node, chars.count);
-                     chars.count = 0;
-                }
-            } else {
-                for (var lp = 0; lp < node.childNodes.length; lp++) {
-                    range = createRange(node.childNodes[lp], chars, range);
-    
-                    if (chars.count === 0) {
-                       break;
-                    }
-                }
-            }
-       } 
-    
-       return range;
-    };
-    
-    function setCurrentCursorPosition(pos) {
-        if (chars >= 0) {
-            var selection = window.getSelection();
-    
-            range = createRange(document.getElementById("test").parentNode, { count: pos });
-    
-            if (range) {
-                range.collapse(false);
-                selection.removeAllRanges();
-                selection.addRange(range);
-            }
-        }
-    };
-    
-
-
-
-
-
-
-
+Mseditor.prototype.insertHtmlAtCaret = function(html, nodeCurrent, caretOffset) {
+    var _this = this
     var sel, range;
     console.log(window.getSelection())
+    
     if (window.getSelection) {
         // IE9 and non-IE
         sel = window.getSelection();
-        console.log(sel)
-        console.log(sel.getRangeAt)
-        console.log(sel.rangeCount)
+        // console.log(sel)
+        // console.log(sel.getRangeAt)
+        // console.log(sel.rangeCount)
         if (sel.getRangeAt && sel.rangeCount) {
+            console.log('sel.rangeCount', sel.rangeCount)
             range = sel.getRangeAt(0);
             range.deleteContents();
+            range.setStart(_this.targetElement, 4)
+            range.setEnd(_this.targetElement, 4)
+            console.log('range', range)
 
             // Range.createContextualFragment() would be useful here but is
             // only relatively recently standardized and is not supported in
             // some browsers (IE9, for one)
             var el = document.createElement("div");
             el.appendChild(html);
+            console.log('el.firstChild', el.firstChild)
             var frag = document.createDocumentFragment(), node, lastNode;
             while ( (node = el.firstChild) ) {
                 lastNode = frag.appendChild(node);
             }
             var firstNode = frag.firstChild;
-            range.insertNode(frag);
+            // range.insertNode(frag);
             
             // Preserve the selection
+            console.log('lastNode', lastNode)
             if (lastNode) {
                 range = range.cloneRange();
-                range.setStartAfter(lastNode);
-                if (selectPastedContent) {
-                    range.setStartBefore(firstNode);
-                } else {
-                    range.collapse(true);
-                }
+                // range.setStartAfter(lastNode);
+                // if (selectPastedContent) {
+                //     range.setStartBefore(firstNode);
+                // } else {
+                //     range.collapse(true);
+                // }
+                range.collapse(true);
                 sel.removeAllRanges();
-                sel.addRange(range);
+                // sel.addRange(range);
             }
         }
     } else if ( (sel = document.selection) && sel.type != "Control") {
@@ -272,29 +235,103 @@ Mseditor.prototype.insertHtmlAtCaret = function(html, selectPastedContent) {
         var originalRange = sel.createRange();
         originalRange.collapse(true);
         sel.createRange().pasteHTML(html);
-        if (selectPastedContent) {
-            range = sel.createRange();
-            range.setEndPoint("StartToStart", originalRange);
-            range.select();
-        }
     }
 }
 
 
-function getCaretCharacterOffsetWithin(element) {
+Mseditor.prototype.setCaretPosition = function() {
+    // Get key data
+    var range = document.createRange();
+    var sel = window.getSelection();
+
+    // Set the range of the DOM element
+    range.setStart(this.nodeCaretPosition, this.currentCaretPosition);
+    range.collapse(true);
+
+    // Set the selection point
+    sel.removeAllRanges();
+    sel.addRange(range);
+}
+
+Mseditor.prototype.getCaretPosition = function() {
+    var _this = this
+    _this.indexCaretPosition = 0
+    var selectedObj = window.getSelection()
+    if (selectedObj && selectedObj.rangeCount) {
+        
+        var range = selectedObj.getRangeAt(0);
+        var rangeCount = 0;
+        var childNodes = selectedObj.anchorNode.parentNode.childNodes;
+        var node = selectedObj.anchorNode;
+
+        if(node) {
+            _this.nodeCaretPosition = node
+            while(selectedObj.anchorNode.data == node.parentNode.textContent) {
+                _this.nodeCaretPosition = node.parentNode
+                node = node.parentNode
+            }
+            var childNodesContent = _this.targetContent.childNodes
+            console.log('childNodesContent', childNodesContent)
+            for(let i = 0; i < childNodesContent.length; i++) {
+                if(childNodesContent[i] == _this.nodeCaretPosition) {
+                    _this.indexCaretPosition = i
+                }
+            }
+        }
+
+        for (var i = 0; i < childNodes.length; i++) {
+            console.log('i', i)
+            if (childNodes[i] == selectedObj.anchorNode) {
+                break;
+            }
+            if (childNodes[i].outerHTML) {
+               rangeCount += childNodes[i].outerHTML.length;
+            }
+            else if (childNodes[i].nodeType == 3) {
+                rangeCount += childNodes[i].textContent.length;
+            }
+        }
+        this.currentCaretPosition = range.startOffset + rangeCount;
+    }
+    console.log('this.currentCaretPosition', this.currentCaretPosition)
+    console.log('this.nodeCartOffset', this.nodeCaretPosition)
+    console.log('indexCaretPosition', this.indexCaretPosition)
+    return -1;
+}
+
+
+Mseditor.prototype.getCaretCharacterOffsetWithin = function() {
+    var _this = this
+    var element = this.targetElement
     var caretOffset = 0;
+    _this.nodeCartOffset = null
     var doc = element.ownerDocument || element.document;
     var win = doc.defaultView || doc.parentWindow;
     var sel;
+
     if (typeof win.getSelection != "undefined") {
-      sel = win.getSelection();
-      if (sel.rangeCount > 0) {
-        var range = win.getSelection().getRangeAt(0);
-        var preCaretRange = range.cloneRange();
-        preCaretRange.selectNodeContents(element);
-        preCaretRange.setEnd(range.endContainer, range.endOffset);
-        caretOffset = preCaretRange.toString().length;
-      }
+        sel = win.getSelection();
+        var node = sel.anchorNode;
+        if(node) {
+            _this.nodeCartOffset = node
+            while(sel.anchorNode.data == node.parentNode.textContent) {
+                _this.nodeCartOffset = node.parentNode
+                node = node.parentNode
+            }
+        }
+        
+        if (sel.rangeCount > 0) {
+            var range = win.getSelection().getRangeAt(0);
+            var preCaretRange = range.cloneRange();
+            preCaretRange.selectNodeContents(element);
+            console.log('range.endContainer', range.endContainer)
+            console.log('range.endOffset', range.endOffset)
+            preCaretRange.setEnd(range.endContainer, range.endOffset);
+            console.log('preCaretRange', preCaretRange)
+            console.log('preCaretRange.toString()', preCaretRange.toString())
+            caretOffset = preCaretRange.toString().length;
+            console.log('range', range)
+        }
     } else if ((sel = doc.selection) && sel.type != "Control") {
       var textRange = sel.createRange();
       var preCaretTextRange = doc.body.createTextRange();
@@ -302,26 +339,8 @@ function getCaretCharacterOffsetWithin(element) {
       preCaretTextRange.setEndPoint("EndToEnd", textRange);
       caretOffset = preCaretTextRange.text.length;
     }
-    return caretOffset;
+    this.currentCaretPosition = caretOffset
+    console.log('this.currentCaretPosition', this.currentCaretPosition)
+    console.log('this.nodeCartOffset', this.nodeCartOffset)
 }
 
-Mseditor.prototype.getCaretPosition = function() {
-    if (window.getSelection && window.getSelection().getRangeAt) {
-        var range = window.getSelection().getRangeAt(0);
-        var selectedObj = window.getSelection();
-        var rangeCount = 0;
-        var childNodes = selectedObj.anchorNode.parentNode.childNodes;
-        for (var i = 0; i < childNodes.length; i++) {
-            if (childNodes[i] == selectedObj.anchorNode) {
-                break;
-            }
-            if (childNodes[i].outerHTML)
-                rangeCount += childNodes[i].outerHTML.length;
-            else if (childNodes[i].nodeType == 3) {
-                rangeCount += childNodes[i].textContent.length;
-            }
-        }
-        return range.startOffset + rangeCount;
-    }
-    return -1;
-}
