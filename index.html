@@ -30,7 +30,7 @@
             height: 100%;
             padding: 40px 50px;
             background: #FFF;
-            outline: none;
+            /* outline: none; */
             border-radius: 4px;
             border: 1px solid #ccc;
         }
@@ -82,6 +82,9 @@
             color: #FFF;
             cursor: pointer;
         }
+        #test {
+            padding: 40px 50px;
+        }
     </style>
     <div id="mseditor-test">
         <div id="mseditor">Hello World<div>xin chao <b>cac ban hoc sinh</b></div><div>the company is <b><u>your handle</u></b></div></div>
@@ -90,6 +93,90 @@
         new Mseditor({
             element: '#mseditor'
         })
+        
     </script>
+
+    <input type="checkbox" id="selectPasted" checked> Selected pasted content
+    <br>
+    <input type="button" id="paste" value="Paste HTML" unselectable="on">
+
+    <div id="test" contenteditable="true">Hello World<div>xin chao <b>cac ban hoc sinh</b></div><div>the company is <b><u>your handle</u></b></div></div>
+    <script type="text/javascript">
+        function pasteHtmlAtCaret(html, selectPastedContent) {
+            var sel, range;
+            if (window.getSelection) {
+                // IE9 and non-IE
+                sel = window.getSelection();
+                if (sel.getRangeAt && sel.rangeCount) {
+                    range = sel.getRangeAt(0);
+                    range.deleteContents();
+
+                    // Range.createContextualFragment() would be useful here but is
+                    // only relatively recently standardized and is not supported in
+                    // some browsers (IE9, for one)
+                    var el = document.createElement("div");
+                    el.appendChild(html)
+                    var frag = document.createDocumentFragment(), node, lastNode;
+                    while ( (node = el.firstChild) ) {
+                        lastNode = frag.appendChild(node);
+                    }
+                    var firstNode = frag.firstChild;
+                    range.insertNode(frag);
+                    
+                    // Preserve the selection
+                    if (lastNode) {
+                        range = range.cloneRange();
+                        range.setStartAfter(lastNode);
+                        if (selectPastedContent) {
+                            range.setStartBefore(firstNode);
+                        } else {
+                            range.collapse(true);
+                        }
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }
+            } else if ( (sel = document.selection) && sel.type != "Control") {
+                // IE < 9
+                var originalRange = sel.createRange();
+                originalRange.collapse(true);
+                sel.createRange().pasteHTML(html);
+                if (selectPastedContent) {
+                    range = sel.createRange();
+                    range.setEndPoint("StartToStart", originalRange);
+                    range.select();
+                }
+            }
+        }
+
+        document.getElementById("paste").onclick = function() {
+            document.getElementById('test').focus();
+            var selectPastedContent = document.getElementById('selectPasted').checked;
+            var divButtonContent = document.createElement('div')
+            divButtonContent.innerText = 'Button'
+            divButtonContent.setAttribute('contenteditable', true)
+
+            var divButton = document.createElement('div')
+            divButton.setAttribute('class', 'mseditor-button')
+            // divButton.setAttribute('contenteditable', false)
+            var buttonStyle = JSON.stringify({
+                'backgroud': '#F00',
+                'color': '#FFF',
+                'padding': '10px 20px',
+                'margin-top': '10px',
+                'margin-bottom': '20px'
+            })
+            divButton.setAttribute('data-style', buttonStyle)
+            divButton.appendChild(divButtonContent)
+
+            var div = document.createElement('div')
+            div.setAttribute('class', 'mseditor-button-wrap')
+            // div.setAttribute('contenteditable', false)
+            div.appendChild(divButton)
+            pasteHtmlAtCaret(div, selectPastedContent);
+
+        };
+    </script>
+
 </body>
 </html>

@@ -168,11 +168,10 @@ Mseditor.prototype.eventListener = function() {
         div.appendChild(divButton)
 
         _this.targetContent.focus()
-        console.log(_this.targetContent)
-
-        // _this.setCaretCharacterOffsetWithin()
         _this.setCaretPosition()
-        _this.insertHtmlAtCaret(div, false)
+        _this.insertHtmlAtCaret(div)
+
+        return false
     })
 
     function getCaretPos() {
@@ -183,74 +182,61 @@ Mseditor.prototype.eventListener = function() {
 }
 
 
-Mseditor.prototype.insertHtmlAtCaret = function(html, nodeCurrent, caretOffset) {
+Mseditor.prototype.insertHtmlAtCaret = function(html) {
     var _this = this
     var sel, range;
-    console.log(window.getSelection())
-    
     if (window.getSelection) {
         // IE9 and non-IE
         sel = window.getSelection();
-        // console.log(sel)
-        // console.log(sel.getRangeAt)
-        // console.log(sel.rangeCount)
         if (sel.getRangeAt && sel.rangeCount) {
-            console.log('sel.rangeCount', sel.rangeCount)
             range = sel.getRangeAt(0);
             range.deleteContents();
-            range.setStart(_this.targetElement, 4)
-            range.setEnd(_this.targetElement, 4)
-            console.log('range', range)
 
             // Range.createContextualFragment() would be useful here but is
             // only relatively recently standardized and is not supported in
             // some browsers (IE9, for one)
             var el = document.createElement("div");
-            el.appendChild(html);
-            console.log('el.firstChild', el.firstChild)
+            el.appendChild(html)
             var frag = document.createDocumentFragment(), node, lastNode;
             while ( (node = el.firstChild) ) {
                 lastNode = frag.appendChild(node);
             }
             var firstNode = frag.firstChild;
-            // range.insertNode(frag);
+            range.insertNode(frag);
             
             // Preserve the selection
-            console.log('lastNode', lastNode)
             if (lastNode) {
                 range = range.cloneRange();
-                // range.setStartAfter(lastNode);
-                // if (selectPastedContent) {
-                //     range.setStartBefore(firstNode);
-                // } else {
-                //     range.collapse(true);
-                // }
+                range.setStartAfter(lastNode);
+                
                 range.collapse(true);
+                
                 sel.removeAllRanges();
-                // sel.addRange(range);
+                sel.addRange(range);
             }
         }
     } else if ( (sel = document.selection) && sel.type != "Control") {
         // IE < 9
         var originalRange = sel.createRange();
         originalRange.collapse(true);
-        sel.createRange().pasteHTML(html);
+        //sel.createRange().pasteHTML(html);
+        
     }
 }
 
 
 Mseditor.prototype.setCaretPosition = function() {
     // Get key data
-    var range = document.createRange();
-    var sel = window.getSelection();
+    // var range = document.createRange();
+    // var sel = window.getSelection();
 
-    // Set the range of the DOM element
-    range.setStart(this.nodeCaretPosition, this.currentCaretPosition);
-    range.collapse(true);
+    // // Set the range of the DOM element
+    // range.setStart(this.nodeCaretPosition, this.currentCaretPosition);
+    // range.collapse(true);
 
-    // Set the selection point
-    sel.removeAllRanges();
-    sel.addRange(range);
+    // // Set the selection point
+    // sel.removeAllRanges();
+    // sel.addRange(range);
 }
 
 Mseditor.prototype.getCaretPosition = function() {
